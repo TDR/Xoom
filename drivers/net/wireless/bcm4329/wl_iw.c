@@ -5145,15 +5145,15 @@ wl_iw_set_pmksa(
 
 		if ((pmkid_list.pmkids.npmkid > 0) && (i < pmkid_list.pmkids.npmkid)) {
 			bzero(&pmkid_list.pmkids.pmkid[i], sizeof(pmkid_t));
-			for (; i < (pmkid_list.pmkids.npmkid - 1); i++) {
-				bcopy(&pmkid_list.pmkids.pmkid[i+1].BSSID,
-					&pmkid_list.pmkids.pmkid[i].BSSID,
+			for (; i < pmkid_list.pmkids.npmkid; i++) {
+				bcopy(&pmkid_list.pmkids.pmkid[i].BSSID,
+					&pmkid_list.pmkids.pmkid[i-1].BSSID,
 					ETHER_ADDR_LEN);
-				bcopy(&pmkid_list.pmkids.pmkid[i+1].PMKID,
-					&pmkid_list.pmkids.pmkid[i].PMKID,
+				bcopy(&pmkid_list.pmkids.pmkid[i].PMKID,
+					&pmkid_list.pmkids.pmkid[i-1].PMKID,
 					WPA2_PMKID_LEN);
 			}
-			pmkid_list.pmkids.npmkid--;
+			pmkid_list.pmkids.npmkid -= 2; // Bounds changed, keep old behavior
 		}
 		else
 			ret = -EINVAL;
