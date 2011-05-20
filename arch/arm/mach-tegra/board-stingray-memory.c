@@ -21,7 +21,6 @@
 #include "board-stingray.h"
 #include "tegra2_emc.h"
 
-
 static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 	{
 		.rate = 25000,   /* SDRAM frequency */
