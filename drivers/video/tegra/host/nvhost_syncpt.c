@@ -165,7 +165,8 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	void *ref;
-	int err = 0;
+	int err = 0, stuck = 0;
+	const int stuckmax = 5; // Some arbitrary value
 
 	BUG_ON(!check_max(sp, id, thresh));
 
@@ -212,10 +213,22 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 		if (timeout != NVHOST_NO_TIMEOUT)
 			timeout -= check;
 		if (timeout) {
-			dev_warn(&syncpt_to_dev(sp)->pdev->dev,
-				"syncpoint id %d (%s) stuck waiting %d\n",
-				id, nvhost_syncpt_name(id), thresh);
-			nvhost_syncpt_debug(sp);
+			if (stuck < stuckmax)
+			{
+				dev_warn(&syncpt_to_dev(sp)->pdev->dev,
+					"syncpoint id %d (%s) stuck waiting %d\n",
+					id, nvhost_syncpt_name(id), thresh);
+				nvhost_syncpt_debug(sp);
+				stuck++;
+			}
+			else // Lame attempt to recover from rare stuck syncpoint issue
+			{
+				dev_warn(&syncpt_to_dev(sp)->pdev->dev,
+					"attempting to force reset of syncpoint id %d (%s)\n",
+					id, nvhost_syncpt_name(id));
+				nvhost_syncpt_reset(sp);
+				timeout = 0;
+			}
 		}
 	};
 	nvhost_intr_put_ref(&(syncpt_to_dev(sp)->intr), ref);
