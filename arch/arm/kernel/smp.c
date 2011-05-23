@@ -292,6 +292,8 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	percpu_timer_setup();
 
 	calibrate_delay();
+	struct cpuinfo_arm *cpu0_info = &per_cpu(cpu_data, 0); // Take lpj from CPU0
+	loops_per_jiffy = cpu0_info->loops_per_jiffy;
 
 	smp_store_cpu_info(cpu);
 
