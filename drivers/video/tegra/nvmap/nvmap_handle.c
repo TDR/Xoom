@@ -303,7 +303,9 @@ int nvmap_alloc_handle_id(struct nvmap_client *client,
 	nr_page = ((h->size + PAGE_SIZE - 1) >> PAGE_SHIFT);
 	h->secure = !!(flags & NVMAP_HANDLE_SECURE);
 	h->flags = (flags & NVMAP_HANDLE_CACHE_FLAG);
+	h->align = max_t(size_t, align, L1_CACHE_BYTES);
 
+#ifndef CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM
 #ifdef CONFIG_NVMAP_ALLOW_SYSMEM
 	/* Allow single pages allocations in system memory to save
 	 * carveout space and avoid extra iovm mappings */
@@ -322,6 +324,7 @@ int nvmap_alloc_handle_id(struct nvmap_client *client,
 				heap_mask |= NVMAP_HEAP_SYSMEM;
 		}
 	}
+#endif
 #endif
 
 	/* This restriction is deprecated as alignments greater than
