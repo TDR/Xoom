@@ -37,6 +37,10 @@
 #include "clock.h"
 #include "dvfs.h"
 
+#define FREQCOUNT 13
+extern int cpufrequency[FREQCOUNT];
+extern int cpuuvoffset[FREQCOUNT];
+
 static LIST_HEAD(dvfs_rail_list);
 static DEFINE_MUTEX(dvfs_lock);
 
@@ -132,7 +136,7 @@ static int dvfs_rail_set_voltage(struct dvfs_rail *rail, int millivolts)
 				rail->max_millivolts * 1000);
 		}
 		if (ret) {
-			pr_err("Failed to set dvfs regulator %s\n", rail->reg_id);
+			pr_err("Failed to set dvfs regulator %s to %d (max %d)\n", rail->reg_id, rail->new_millivolts, rail->max_millivolts);
 			return ret;
 		}
 
@@ -211,7 +215,7 @@ static int dvfs_rail_connect_to_regulator(struct dvfs_rail *rail)
 static int
 __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 {
-	int i = 0;
+	int i = 0, j = 0, mvoffset = 0;
 	int ret;
 
 	if (d->freqs == NULL || d->millivolts == NULL)
@@ -228,8 +232,14 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 	} else {
 		while (i < d->num_freqs && rate > d->freqs[i])
 			i++;
-
-		d->cur_millivolts = d->millivolts[i];
+		if (strcmp(d->clk_name, "cpu") == 0)
+		{
+			while (j < FREQCOUNT && (rate / 1000) < cpufrequency[j]) // TODO: Make more robust
+				j++;
+			mvoffset = cpuuvoffset[j];
+		}
+		else mvoffset = 0;
+		d->cur_millivolts = d->millivolts[i] - mvoffset;
 	}
 
 	d->cur_rate = rate;
