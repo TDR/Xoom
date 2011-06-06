@@ -84,6 +84,8 @@
 #define USB_PRODUCT_NAME_LTE            "MZ602"
 #define USB_PRODUCT_NAME_WIFI_ONLY      "MZ604"
 #define USB_PRODUCT_ID_BLAN             0x70A3
+#define USB_PRODUCT_ID_MS               0x70A6	// FIXME need Moto's real PID here
+#define USB_PRODUCT_ID_MS_ADB           0x70A7	// FIXME need Moto's real PID here
 #define USB_PRODUCT_ID_MTP              0x70A8
 #define USB_PRODUCT_ID_MTP_ADB          0x70A9
 #define USB_PRODUCT_ID_RNDIS            0x70AE
@@ -249,6 +251,10 @@ static struct tegra_audio_platform_data tegra_spdif_pdata = {
 
 static char *usb_functions_mtp[] = { "mtp" };
 static char *usb_functions_mtp_adb[] = { "mtp", "adb" };
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+static char *usb_functions_ms[] = { "usb_mass_storage" };
+static char *usb_functions_ms_adb[] = { "usb_mass_storage", "adb" };
+#endif
 #ifdef CONFIG_USB_ANDROID_ACCESSORY
 static char *usb_functions_accessory[] = { "accessory" };
 static char *usb_functions_accessory_adb[] = { "accessory", "adb" };
@@ -265,7 +271,10 @@ static char *usb_functions_all[] = {
 	"accessory",
 #endif
 	"mtp",
-	"adb"
+	"adb",
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	"usb_mass_storage",
+#endif
 };
 
 static struct android_usb_product usb_products[] = {
@@ -279,6 +288,18 @@ static struct android_usb_product usb_products[] = {
 		.num_functions	= ARRAY_SIZE(usb_functions_mtp_adb),
 		.functions	= usb_functions_mtp_adb,
 	},
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	{
+		.product_id	= USB_PRODUCT_ID_MS,
+		.num_functions	= ARRAY_SIZE(usb_functions_ms),
+		.functions	= usb_functions_ms,
+	},
+	{
+		.product_id	= USB_PRODUCT_ID_MS_ADB,
+		.num_functions	= ARRAY_SIZE(usb_functions_ms_adb),
+		.functions	= usb_functions_ms_adb,
+	},
+#endif
 #ifdef CONFIG_USB_ANDROID_ACCESSORY
 	{
 		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
@@ -400,6 +421,23 @@ static struct android_usb_platform_data andusb_plat_bp = {
 static struct platform_device usbnet_device = {
 	.name = "usbnet",
 };
+
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+static struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= USB_MANUFACTURER_NAME,
+	.product	= USB_PRODUCT_NAME "-MS",
+	.release	= 0x0100,
+};
+
+static struct platform_device mass_storage_device = {
+	.name = "usb_mass_storage",
+	.id = -1,
+	.dev = {
+		.platform_data = &mass_storage_pdata,
+	},
+};
+#endif
 
 #ifdef CONFIG_USB_ANDROID_RNDIS
 static struct usb_ether_platform_data rndis_pdata = {
@@ -867,6 +905,10 @@ static void stingray_usb_init(void)
 		platform_device_register(&tegra_ehci2_device);
 
 	platform_device_register(&tegra_ehci3_device);
+
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	platform_device_register(&mass_storage_device);
+#endif
 
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	src = usb_serial_num;
