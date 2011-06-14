@@ -399,27 +399,39 @@ static void hdmi_dumpregs(struct tegra_dc_hdmi_data *hdmi)
 
 #define PIXCLOCK_TOLERANCE	200
 
+static int tegra_dc_calc_clock_per_frame(const struct fb_videomode *mode)
+{
+	return (mode->left_margin + mode->xres +
+		mode->right_margin + mode->hsync_len) *
+	       (mode->upper_margin + mode->yres +
+		mode->lower_margin + mode->vsync_len);
+}
 static bool tegra_dc_hdmi_mode_equal(const struct fb_videomode *mode1,
 					const struct fb_videomode *mode2)
 {
+	int clock_per_frame = tegra_dc_calc_clock_per_frame(mode1);
+
+	/* allows up to 1Hz of pixclock difference */
 	return mode1->xres	== mode2->xres &&
 		mode1->yres	== mode2->yres &&
+		(abs(PICOS2KHZ(mode1->pixclock - mode2->pixclock)) *
+		1000 / clock_per_frame <= 1) &&
 		mode1->vmode	== mode2->vmode;
 }
 
 static bool tegra_dc_hdmi_mode_filter(struct fb_videomode *mode)
 {
 	int i;
-	int clocks;
+	int clock_per_frame;
 
 	for (i = 0; i < ARRAY_SIZE(tegra_dc_hdmi_supported_modes); i++) {
 		if (tegra_dc_hdmi_mode_equal(&tegra_dc_hdmi_supported_modes[i],
 					     mode)) {
 			memcpy(mode, &tegra_dc_hdmi_supported_modes[i], sizeof(*mode));
 			mode->flag = FB_MODE_IS_DETAILED;
-			clocks = (mode->left_margin + mode->xres + mode->right_margin + mode->hsync_len) *
-				(mode->upper_margin + mode->yres + mode->lower_margin + mode->vsync_len);
-			mode->refresh = (PICOS2KHZ(mode->pixclock) * 1000) / clocks;
+			clock_per_frame = tegra_dc_calc_clock_per_frame(mode);
+			mode->refresh = (PICOS2KHZ(mode->pixclock) * 1000)
+					/ clock_per_frame;
 			return true;
 		}
 	}
