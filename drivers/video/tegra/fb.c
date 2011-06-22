@@ -723,7 +723,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	if (!tegra_fb->flip_wq) {
 		dev_err(&ndev->dev, "couldn't create flip work-queue\n");
 		ret = -ENOMEM;
-		goto err_delete_wq;
+		goto err_put_client;
 	}
 
 	if (fb_mem) {
@@ -733,7 +733,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 		if (!fb_base) {
 			dev_err(&ndev->dev, "fb can't be mapped\n");
 			ret = -EBUSY;
-			goto err_put_client;
+			goto err_delete_wq;
 		}
 		tegra_fb->valid = true;
 	}
@@ -809,10 +809,10 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 
 err_iounmap_fb:
 	iounmap(fb_base);
-err_put_client:
-	nvmap_client_put(tegra_fb->fb_nvmap);
 err_delete_wq:
 	destroy_workqueue(tegra_fb->flip_wq);
+err_put_client:
+	nvmap_client_put(tegra_fb->fb_nvmap);
 err_free:
 	framebuffer_release(info);
 err:
