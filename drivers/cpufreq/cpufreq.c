@@ -695,6 +695,16 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 	return table - buf;
 }
 
+static ssize_t show_cpuinfo_max_mV(struct cpufreq_policy *policy, char *buf)
+{
+	sprintf(buf, "%u\n", CPUMVMAX);
+}
+
+static ssize_t show_cpuinfo_min_mV(struct cpufreq_policy *policy, char *buf)
+{
+	sprintf(buf, "%u\n", CPUMVMIN);
+}
+
 static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf, size_t count)
 {
 	int tmptable[FREQCOUNT];
@@ -715,6 +725,8 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf, size_
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
+cpufreq_freq_attr_ro(cpuinfo_min_mV);
+cpufreq_freq_attr_ro(cpuinfo_max_mV);
 cpufreq_freq_attr_ro(cpuinfo_transition_latency);
 cpufreq_freq_attr_ro(scaling_available_governors);
 cpufreq_freq_attr_ro(scaling_driver);
@@ -732,6 +744,8 @@ cpufreq_freq_attr_rw(UV_mV_table);
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
+	&cpuinfo_min_mV.attr,
+	&cpuinfo_max_mV.attr,
 	&cpuinfo_transition_latency.attr,
 	&scaling_min_freq.attr,
 	&scaling_max_freq.attr,
