@@ -50,14 +50,14 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_cpu = {
 	.reg_id = "vdd_cpu",
 	.max_millivolts = 1400,
 	.min_millivolts = 750,
-	.nominal_millivolts = 1100,
+	.nominal_millivolts = 1250,
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
 	.reg_id = "vdd_core",
 	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1200,
+	.nominal_millivolts = 1300,
 	.step = 150, /* step vdd_core by 150 mV to allow vdd_aon to follow */
 };
 
@@ -197,8 +197,8 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("3d",      1, KHZ, 114000, 161500, 247000, 300000, 300000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("mpe",     1, KHZ, 104500, 152000, 228000, 250000, 250000, 250000, 250000, 250000, 250000),
 	CORE_DVFS("vi",      1, KHZ, 85000,  100000, 150000, 150000, 150000, 150000, 150000, 150000, 150000),
-	CORE_DVFS("sclk",    1, KHZ, 95000,  133000, 190000, 240000, 240000, 240000, 240000, 240000, 240000),
-	CORE_DVFS("vde",     1, KHZ, 95000,  123500, 209000, 240000, 240000, 240000, 240000, 240000, 240000),
+	CORE_DVFS("sclk",    1, KHZ, 95000,  133000, 190000, 250000, 250000, 250000, 250000, 250000, 250000),
+	CORE_DVFS("vde",     1, KHZ, 95000,  123500, 209000, 250000, 250000, 250000, 250000, 250000, 250000),
 	/* What is this? */
 	CORE_DVFS("NVRM_DEVID_CLK_SRC", 1, MHZ, 480, 600, 800, 1067, 1067, 1067, 1067, 1067, 1067),
 };
