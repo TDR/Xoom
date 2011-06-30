@@ -50,14 +50,14 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_cpu = {
 	.reg_id = "vdd_cpu",
 	.max_millivolts = 1400,
 	.min_millivolts = 750,
-	.nominal_millivolts = 1100,
+	.nominal_millivolts = 1400,
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
 	.reg_id = "vdd_core",
 	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1200,
+	.nominal_millivolts = 1450,
 	.step = 150, /* step vdd_core by 150 mV to allow vdd_aon to follow */
 };
 
@@ -65,7 +65,7 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_aon = {
 	.reg_id = "vdd_aon",
 	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1200,
+	.nominal_millivolts = 1450,
 #ifndef CONFIG_TEGRA_CORE_DVFS
 	.disabled = true,
 #endif
@@ -151,7 +151,7 @@ static struct dvfs dvfs_init[] = {
 	CPU_DVFS("cpu", 3, MHZ, 730, 760, 845, 845, 1000, 1200, 1400, 1504, 1600, 1700),
 
 	/* Core voltages (mV):         950,   1000,   1100,   1200,   1225,   1275,   1300,   1400,   1450 */
-	CORE_DVFS("emc",     1, KHZ, 57000, 333000, 333000, 666000, 666000, 666000, 800000, 800000, 800000),
+	CORE_DVFS("emc",     1, KHZ, 57000, 333000, 333000, 666000, 666000, 666000, 760000, 800000, 800000),
 
 #if 0
 	/*
@@ -195,9 +195,9 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("epp",     1, KHZ, 133000, 171000, 247000, 300000, 300000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("2d",      1, KHZ, 133000, 171000, 247000, 300000, 300000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("3d",      1, KHZ, 247000, 285000, 351500, 400000, 400000, 400000, 400000, 400000, 400000),
-	CORE_DVFS("mpe",     1, KHZ, 133000, 171000, 247000, 300000, 300000, 300000, 300000, 300000, 300000),
+	CORE_DVFS("mpe",     1, KHZ, 228000, 266000, 300000, 300000, 300000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("vi",      1, KHZ, 85000,  100000, 150000, 150000, 150000, 150000, 150000, 150000, 150000),
-	CORE_DVFS("sclk",    1, KHZ, 152000, 209000, 285000, 300000, 300000, 300000, 300000, 300000, 300000),
+	CORE_DVFS("sclk",    1, KHZ, 171000, 218500, 256500, 292500, 292500, 300000, 300000, 300000, 300000),
 	CORE_DVFS("vde",     1, KHZ, 152000, 209000, 285000, 300000, 300000, 300000, 300000, 300000, 300000),
 	/* What is this? */
 	CORE_DVFS("NVRM_DEVID_CLK_SRC", 1, MHZ, 480, 600, 800, 1067, 1067, 1067, 1067, 1067, 1067),
