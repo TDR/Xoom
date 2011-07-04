@@ -1898,10 +1898,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	if (host->quirks & SDHCI_QUIRK_RUNTIME_DISABLE) {
+	if (host->quirks & SDHCI_QUIRK_RUNTIME_DISABLE)
 		mmc->caps |= MMC_CAP_DISABLE;
-		mmc_set_disable_delay(mmc, 50);
-	}
 
 	mmc->caps |= MMC_CAP_ERASE;
 
