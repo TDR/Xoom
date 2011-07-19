@@ -50,14 +50,14 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_cpu = {
 	.reg_id = "vdd_cpu",
 	.max_millivolts = 1400,
 	.min_millivolts = 750,
-	.nominal_millivolts = 1250,
+	.nominal_millivolts = 1400,
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
 	.reg_id = "vdd_core",
 	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1300,
+	.nominal_millivolts = 1450,
 	.step = 150, /* step vdd_core by 150 mV to allow vdd_aon to follow */
 };
 
@@ -65,7 +65,7 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_aon = {
 	.reg_id = "vdd_aon",
 	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1200,
+	.nominal_millivolts = 1450,
 #ifndef CONFIG_TEGRA_CORE_DVFS
 	.disabled = true,
 #endif

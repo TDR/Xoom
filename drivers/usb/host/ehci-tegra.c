@@ -95,7 +95,7 @@ static int tegra_ehci_hub_control(
 	else if (typeReq == GetPortStatus) {
 		temp = ehci_readl(ehci, status_reg);
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND) &&
-			time_after_eq(jiffies, ehci->reset_done[wIndex-1])) {
+		    time_after_eq(jiffies, ehci->reset_done[wIndex-1])) {
 			/* Resume completed, re-enable disconnect detection */
 			tegra->port_resuming = 0;
 			clear_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
