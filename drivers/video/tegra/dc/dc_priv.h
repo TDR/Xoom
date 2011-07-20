@@ -141,4 +141,5 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk);
 extern struct tegra_dc_out_ops tegra_dc_rgb_ops;
 extern struct tegra_dc_out_ops tegra_dc_hdmi_ops;
 
+void tegra_dc_schedule_reset(int dc_id);
 #endif

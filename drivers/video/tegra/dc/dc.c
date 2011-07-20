@@ -1140,6 +1140,16 @@ void tegra_dc_disable(struct tegra_dc *dc)
 	mutex_unlock(&dc->lock);
 }
 
+void tegra_dc_schedule_reset(int dc_id)
+{
+	if (dc_id < TEGRA_MAX_DC) {
+		dev_warn(&tegra_dcs[dc_id]->ndev->dev,
+			"%s(%d)\n", __FUNCTION__, dc_id);
+		dump_regs(tegra_dcs[dc_id]);
+		schedule_work(&tegra_dcs[dc_id]->reset_work);
+	}
+}
+
 static void tegra_dc_reset_worker(struct work_struct *work)
 {
 	struct tegra_dc *dc =
