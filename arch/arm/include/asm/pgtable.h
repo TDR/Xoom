@@ -257,7 +257,9 @@ extern struct page *empty_zero_page;
 #define ZERO_PAGE(vaddr)	(empty_zero_page)
 
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
+#define pmd_pfn(pmd)		((pmd_val(pmd) & SECTION_MASK) >> PAGE_SHIFT)
 #define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
+#define pte_pgprot(pte)		((pgprot_t)(pte_val(pte) & ~PAGE_MASK))
 
 #define pte_none(pte)		(!pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
@@ -346,6 +348,24 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 		pmdp[1] = __pmd(0);	\
 		clean_pmd_entry(pmdp);	\
 	} while (0)
+
+extern spinlock_t pgd_lock;
+extern struct list_head pgd_list;
+
+pte_t *lookup_address(unsigned long address, unsigned int *level);
+enum {
+	PG_LEVEL_NONE,
+	PG_LEVEL_4K,
+	PG_LEVEL_2M,
+	PG_LEVEL_NUM
+};
+
+#ifdef CONFIG_PROC_FS
+extern void update_page_count(int level, unsigned long pages);
+#else
+static inline void update_page_count(int level, unsigned long pages) { }
+#endif
+
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
