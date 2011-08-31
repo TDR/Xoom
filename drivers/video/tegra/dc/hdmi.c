@@ -399,27 +399,48 @@ static void hdmi_dumpregs(struct tegra_dc_hdmi_data *hdmi)
 
 #define PIXCLOCK_TOLERANCE	200
 
+static int tegra_dc_calc_clock_per_frame(const struct fb_videomode *mode)
+{
+	return (mode->left_margin + mode->xres +
+		mode->right_margin + mode->hsync_len) *
+	       (mode->upper_margin + mode->yres +
+		mode->lower_margin + mode->vsync_len);
+}
 static bool tegra_dc_hdmi_mode_equal(const struct fb_videomode *mode1,
 					const struct fb_videomode *mode2)
 {
-	return mode1->xres	== mode2->xres &&
-		mode1->yres	== mode2->yres &&
-		mode1->vmode	== mode2->vmode;
+	int clock_per_frame = tegra_dc_calc_clock_per_frame(mode1);
+
+	if (!clock_per_frame)
+		return false;
+
+	/* allows up to 1Hz of pixclock difference */
+	if (mode1->pixclock != mode2->pixclock) {
+		return (mode1->xres == mode2->xres &&
+		mode1->yres == mode2->yres &&
+		(abs(PICOS2KHZ(mode1->pixclock - mode2->pixclock)) * 1000
+		/ clock_per_frame <= 1) &&
+		mode1->vmode == mode2->vmode);
+	} else {
+		return (mode1->xres == mode2->xres &&
+		mode1->yres == mode2->yres &&
+		mode1->vmode == mode2->vmode);
+	}
 }
 
 static bool tegra_dc_hdmi_mode_filter(struct fb_videomode *mode)
 {
 	int i;
-	int clocks;
+	int clock_per_frame;
 
 	for (i = 0; i < ARRAY_SIZE(tegra_dc_hdmi_supported_modes); i++) {
 		if (tegra_dc_hdmi_mode_equal(&tegra_dc_hdmi_supported_modes[i],
 					     mode)) {
 			memcpy(mode, &tegra_dc_hdmi_supported_modes[i], sizeof(*mode));
 			mode->flag = FB_MODE_IS_DETAILED;
-			clocks = (mode->left_margin + mode->xres + mode->right_margin + mode->hsync_len) *
-				(mode->upper_margin + mode->yres + mode->lower_margin + mode->vsync_len);
-			mode->refresh = (PICOS2KHZ(mode->pixclock) * 1000) / clocks;
+			clock_per_frame = tegra_dc_calc_clock_per_frame(mode);
+			mode->refresh = (PICOS2KHZ(mode->pixclock) * 1000)
+					/ clock_per_frame;
 			return true;
 		}
 	}
@@ -538,6 +559,9 @@ static void tegra_dc_hdmi_resume(struct tegra_dc *dc)
 			queue_delayed_work(system_nrt_wq, &hdmi->work,
 					   msecs_to_jiffies(30));
 		hdmi->hpd_pending = false;
+	} else if (tegra_dc_hdmi_hpd(dc)) { /* Check for HDMI Peripheral */
+		queue_delayed_work(system_nrt_wq, &hdmi->work,
+					   msecs_to_jiffies(100));
 	}
 	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 }
@@ -608,7 +632,6 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 		err = -EBUSY;
 		goto err_put_clock;
 	}
-	enable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 
 	hdmi->edid = tegra_edid_create(dc->out->dcc_bus);
 	if (IS_ERR_OR_NULL(hdmi->edid)) {
@@ -657,7 +680,6 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 err_edid_destroy:
 	tegra_edid_destroy(hdmi->edid);
 err_free_irq:
-	disable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 err_put_clock:
 	if (!IS_ERR_OR_NULL(disp2_clk))
@@ -679,7 +701,6 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 {
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 
-	disable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 	cancel_delayed_work_sync(&hdmi->work);
 	switch_dev_unregister(&hdmi->hpd_switch);
@@ -1153,6 +1174,7 @@ static void tegra_dc_hdmi_disable(struct tegra_dc *dc)
 
 	tegra_periph_reset_assert(hdmi->clk);
 	clk_disable(hdmi->clk);
+	tegra_dvfs_set_rate(hdmi->clk, 0);
 }
 
 struct tegra_dc_out_ops tegra_dc_hdmi_ops = {

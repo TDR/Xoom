@@ -174,9 +174,12 @@ static int tegra_fb_set_par(struct fb_info *info)
 
 	if (var->pixclock) {
 		struct tegra_dc_mode mode;
+		struct fb_videomode m;
+
+		fb_var_to_videomode(&m, var);
 
 		info->mode = (struct fb_videomode *)
-			fb_find_best_mode(var, &info->modelist);
+			fb_find_nearest_mode(&m, &info->modelist);
 		if (!info->mode) {
 			dev_warn(&tegra_fb->ndev->dev, "can't match video mode\n");
 			return -EINVAL;
@@ -720,7 +723,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	if (!tegra_fb->flip_wq) {
 		dev_err(&ndev->dev, "couldn't create flip work-queue\n");
 		ret = -ENOMEM;
-		goto err_delete_wq;
+		goto err_put_client;
 	}
 
 	if (fb_mem) {
@@ -730,7 +733,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 		if (!fb_base) {
 			dev_err(&ndev->dev, "fb can't be mapped\n");
 			ret = -EBUSY;
-			goto err_put_client;
+			goto err_delete_wq;
 		}
 		tegra_fb->valid = true;
 	}
@@ -806,10 +809,10 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 
 err_iounmap_fb:
 	iounmap(fb_base);
-err_put_client:
-	nvmap_client_put(tegra_fb->fb_nvmap);
 err_delete_wq:
 	destroy_workqueue(tegra_fb->flip_wq);
+err_put_client:
+	nvmap_client_put(tegra_fb->fb_nvmap);
 err_free:
 	framebuffer_release(info);
 err:
