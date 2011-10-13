@@ -1432,7 +1432,7 @@ static bool qmi_ready(struct qcusbnet *dev, u16 timeout)
 		tid = atomic_add_return(1, &dev->qmi.qmitid);
 		if (!tid)
 			tid = atomic_add_return(1, &dev->qmi.qmitid);
-		kfree(wbuf);
+
 		wbuf = qmictl_new_ready(tid, &wbufsize);
 		if (!wbuf)
 			return -ENOMEM;
