@@ -60,7 +60,7 @@ static spinlock_t down_cpumask_lock;
 static struct mutex set_speed_lock;
 
 /* Go to max speed when CPU load at or above this value. */
-#define DEFAULT_GO_MAXSPEED_LOAD 80
+#define DEFAULT_GO_MAXSPEED_LOAD 95
 static unsigned long go_maxspeed_load;
 
 /* Base of exponential raise to max speed; if 0 - jump to maximum */
@@ -164,6 +164,12 @@ static int dbg_proc_read(char *buffer, char **start, off_t offset,
 #else
 #define dbgpr(...) do {} while (0)
 #endif
+
+/*
+ * The sample rate of the timer used to increase frequency
+ */
+#define DEFAULT_TIMER_RATE 10000;
+static unsigned long timer_rate;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
