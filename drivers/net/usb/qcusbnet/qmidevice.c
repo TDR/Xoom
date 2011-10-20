@@ -597,7 +597,9 @@ static int write_sync(struct qcusbnet *dev, char *buf, int size, u16 cid)
 	}
 
 	spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
-	result = down_interruptible(&sem);
+	//result = down_interruptible(&sem);  // FIXME: unexpected interruption occurs?
+	down(&sem); result = 0;
+
 	if (!device_valid(dev)) {
 		ERR("Invalid device!\n");
 		return -ENXIO;
