@@ -1,5 +1,5 @@
 /* qmidevice.c - gobi QMI device
- * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -57,7 +57,8 @@ struct qmihandle {
 };
 
 extern int debug;
-static int qcusbnet2k_fwdelay;
+extern int safeenumdelay;
+extern int interruptible;
 
 static bool device_valid(struct qcusbnet *dev);
 static struct client *client_bycid(struct qcusbnet *dev, u16 cid);
@@ -136,6 +137,28 @@ bool qc_isdown(struct qcusbnet *dev, u8 reason)
 	return test_bit(reason, &dev->down);
 }
 
+int resubmit_int_urb(struct urb *urb)
+{
+	int status;
+	int interval;
+
+	// Sanity test
+	if ((urb == NULL) || (urb->dev == NULL))
+		return -EINVAL;
+
+	struct qcusbnet *dev = (struct qcusbnet *)urb->context;
+	interval = (dev->usbnet->udev->speed == USB_SPEED_HIGH) ? 7 : 3;
+
+	usb_fill_int_urb(urb, urb->dev,	urb->pipe, urb->transfer_buffer,
+			 urb->transfer_buffer_length, urb->complete,
+			 urb->context, interval);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status)
+		ERR("Error re-submitting Int URB %d\n", status);
+
+	return status;
+}
+
 static void read_callback(struct urb *urb)
 {
 	struct list_head *node;
@@ -162,6 +185,7 @@ static void read_callback(struct urb *urb)
 
 	if (urb->status) {
 		DBG("Read status = %d\n", urb->status);
+		resubmit_int_urb(dev->qmi.inturb);
 		return;
 	}
 
@@ -177,11 +201,13 @@ static void read_callback(struct urb *urb)
 	result = qmux_parse(&cid, data, size);
 	if (result < 0) {
 		ERR("Read error parsing QMUX %d\n", result);
+		resubmit_int_urb(dev->qmi.inturb);
 		return;
 	}
 
 	if (size < result + 3) {
 		DBG("Data buffer too small to parse\n");
+		resubmit_int_urb(dev->qmi.inturb);
 		return;
 	}
 
@@ -206,6 +232,7 @@ static void read_callback(struct urb *urb)
 					  "read will be discarded\n");
 				kfree(copy);
 				spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
+				resubmit_int_urb(dev->qmi.inturb);
 				return;
 			}
 
@@ -222,12 +249,12 @@ static void read_callback(struct urb *urb)
 	}
 
 	spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
+	resubmit_int_urb(dev->qmi.inturb);
 }
 
 static void int_callback(struct urb *urb)
 {
 	int status;
-	int interval;
 	struct qcusbnet *dev = (struct qcusbnet *)urb->context;
 
 	if (!device_valid(dev)) {
@@ -252,8 +279,8 @@ static void int_callback(struct urb *urb)
 			status = usb_submit_urb(dev->qmi.readurb, GFP_ATOMIC);
 			if (status) {
 				ERR("Error submitting Read URB %d\n", status);
-				return;
 			}
+			return;
 		} else if ((urb->actual_length == 16) &&
 			   (*(u64 *)urb->transfer_buffer == CDC_CONNECTION_SPEED_CHANGE)) {
 			/* if upstream or downstream is 0, stop traffic.
@@ -276,14 +303,8 @@ static void int_callback(struct urb *urb)
 		}
 	}
 
-	interval = (dev->usbnet->udev->speed == USB_SPEED_HIGH) ? 7 : 3;
+	resubmit_int_urb(urb);
 
-	usb_fill_int_urb(urb, urb->dev,	urb->pipe, urb->transfer_buffer,
-			 urb->transfer_buffer_length, urb->complete,
-			 urb->context, interval);
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
-		ERR("Error re-submitting Int URB %d\n", status);
 	return;
 }
 
@@ -307,35 +328,42 @@ int qc_startread(struct qcusbnet *dev)
 
 	dev->qmi.inturb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->qmi.inturb) {
-		usb_free_urb(dev->qmi.readurb);
 		ERR("Error allocating int urb\n");
+		usb_free_urb(dev->qmi.readurb);
+		dev->qmi.readurb = NULL;
 		return -ENOMEM;
 	}
 
 	dev->qmi.readbuf = kmalloc(DEFAULT_READ_URB_LENGTH, GFP_KERNEL);
 	if (!dev->qmi.readbuf) {
-		usb_free_urb(dev->qmi.readurb);
-		usb_free_urb(dev->qmi.inturb);
 		ERR("Error allocating read buffer\n");
+		usb_free_urb(dev->qmi.inturb);
+		dev->qmi.inturb = NULL;
+		usb_free_urb(dev->qmi.readurb);
+		dev->qmi.readurb = NULL;
 		return -ENOMEM;
 	}
 
 	dev->qmi.intbuf = kmalloc(DEFAULT_READ_URB_LENGTH, GFP_KERNEL);
 	if (!dev->qmi.intbuf) {
-		usb_free_urb(dev->qmi.readurb);
-		usb_free_urb(dev->qmi.inturb);
-		kfree(dev->qmi.readbuf);
 		ERR("Error allocating int buffer\n");
+		kfree(dev->qmi.readbuf);
+		usb_free_urb(dev->qmi.inturb);
+		dev->qmi.inturb = NULL;
+		usb_free_urb(dev->qmi.readurb);
+		dev->qmi.readurb = NULL;
 		return -ENOMEM;
 	}
 
 	dev->qmi.readsetup = kmalloc(sizeof(*dev->qmi.readsetup), GFP_KERNEL);
 	if (!dev->qmi.readsetup) {
-		usb_free_urb(dev->qmi.readurb);
-		usb_free_urb(dev->qmi.inturb);
-		kfree(dev->qmi.readbuf);
-		kfree(dev->qmi.intbuf);
 		ERR("Error allocating setup packet buffer\n");
+		kfree(dev->qmi.intbuf);
+		kfree(dev->qmi.readbuf);
+		usb_free_urb(dev->qmi.inturb);
+		dev->qmi.inturb = NULL;
+		usb_free_urb(dev->qmi.readurb);
+		dev->qmi.readurb = NULL;
 		return -ENOMEM;
 	}
 
@@ -571,6 +599,7 @@ static int write_sync(struct qcusbnet *dev, char *buf, int size, u16 cid)
 		if (result == -EPERM)
 			qc_suspend(dev->iface, PMSG_SUSPEND);
 
+		usb_free_urb(urb);
 		return result;
 	}
 
@@ -597,17 +626,26 @@ static int write_sync(struct qcusbnet *dev, char *buf, int size, u16 cid)
 	}
 
 	spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
-	result = down_interruptible(&sem);
+
+	if (interruptible) {
+		result = down_interruptible(&sem);
+	} else {
+		result = 0;
+		down(&sem);
+	}
+	usb_autopm_put_interface(dev->iface);
+
 	if (!device_valid(dev)) {
 		ERR("Invalid device!\n");
+		usb_free_urb(urb);
 		return -ENXIO;
 	}
 
-	usb_autopm_put_interface(dev->iface);
 	spin_lock_irqsave(&dev->qmi.clients_lock, flags);
 	if (client_delurb(dev, cid) != urb) {
 		ERR("Didn't get write URB back\n");
 		spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
+		usb_free_urb(urb);
 		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
@@ -1089,7 +1127,6 @@ static long devqmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int devqmi_close(struct file *file, fl_owner_t ftable)
 {
 	struct qmihandle *handle = (struct qmihandle *)file->private_data;
-	struct list_head *tasks;
 	struct task_struct *task;
 	struct fdtable *fdtable;
 	int count = 0;
@@ -1102,10 +1139,8 @@ static int devqmi_close(struct file *file, fl_owner_t ftable)
 	}
 
 	if (file_count(file) != 1) {
-		/* XXX: This can't possibly be safe. We don't hold any sort of
-		 * lock here, and we're walking a list of threads... */
-		list_for_each(tasks, &current->group_leader->tasks) {
-			task = container_of(tasks, struct task_struct, tasks);
+		rcu_read_lock();
+		for_each_process(task) {
 			if (!task || !task->files)
 				continue;
 			spin_lock_irqsave(&task->files->file_lock, flags);
@@ -1122,6 +1157,7 @@ static int devqmi_close(struct file *file, fl_owner_t ftable)
 			}
 			spin_unlock_irqrestore(&task->files->file_lock, flags);
 		}
+		rcu_read_unlock();
 
 		if (used > 0) {
 			DBG("not closing, as this FD is open by %d other process\n", used);
@@ -1286,8 +1322,11 @@ int qc_register(struct qcusbnet *dev)
 	dev_t devno;
 	char *name;
 
-	cdev_init(&dev->qmi.cdev, &devqmi_fops);
-	dev->qmi.cdev.owner = THIS_MODULE;
+	if (dev->qmi.cdevinitialized)
+	{
+		dbg("device already exists\n");
+		return -EEXIST;
+	}
 	dev->valid = true;
 
 	result = client_alloc(dev, QMICTL);
@@ -1310,19 +1349,22 @@ int qc_register(struct qcusbnet *dev)
 
 	result = setup_wds_callback(dev);
 	if (result) {
-		dev->valid = false;
 		return result;
 	}
 
 	result = qmidms_getmeid(dev);
 	if (result) {
-		dev->valid = false;
 		return result;
 	}
 
 	result = alloc_chrdev_region(&devno, 0, 1, "qcqmi");
 	if (result < 0)
 		return result;
+
+	cdev_init(&dev->qmi.cdev, &devqmi_fops);
+	dev->qmi.cdev.owner = THIS_MODULE;
+	dev->qmi.cdev.ops = &devqmi_fops;
+	dev->qmi.cdevinitialized = true;
 
 	result = cdev_add(&dev->qmi.cdev, devno, 1);
 	if (result) {
@@ -1356,12 +1398,12 @@ void qc_deregister(struct qcusbnet *dev)
 	struct client *client;
 	struct inode *inode;
 	struct list_head *inodes;
-	struct list_head *tasks;
 	struct task_struct *task;
 	struct fdtable *fdtable;
 	struct file *file;
 	unsigned long flags;
 	int count = 0;
+	int tries;
 
 	if (!device_valid(dev)) {
 		ERR("wrong device\n");
@@ -1376,11 +1418,15 @@ void qc_deregister(struct qcusbnet *dev)
 
 	qc_stopread(dev);
 	dev->valid = false;
+
+	if (!dev->qmi.cdevinitialized)
+		return;
+
 	list_for_each(inodes, &dev->qmi.cdev.list) {
 		inode = container_of(inodes, struct inode, i_devices);
 		if (inode != NULL && !IS_ERR(inode)) {
-			list_for_each(tasks, &current->group_leader->tasks) {
-				task = container_of(tasks, struct task_struct, tasks);
+			rcu_read_lock();
+			for_each_process(task) {
 				if (!task || !task->files)
 					continue;
 				spin_lock_irqsave(&task->files->file_lock, flags);
@@ -1399,11 +1445,25 @@ void qc_deregister(struct qcusbnet *dev)
 				}
 				spin_unlock_irqrestore(&task->files->file_lock, flags);
 			}
+			rcu_read_unlock();
 		}
 	}
 
 	if (!IS_ERR(dev->qmi.devclass))
 		device_destroy(dev->qmi.devclass, dev->qmi.devnum);
+
+	// Hold onto cdev memory location until everyone is through using it.
+	// Timeout after 30 seconds (10 ms interval).
+	for (tries = 0; tries < 30*100; tries++) {
+		int ref = atomic_read(&dev->qmi.cdev.kobj.kref.refcount);
+		if (ref > 1) {
+			DBG("cdev in use by %d tasks\n", ref-1);
+			msleep(10);
+		}
+		else
+			break;
+	}
+
 	cdev_del(&dev->qmi.cdev);
 	unregister_chrdev_region(dev->qmi.devnum, 1);
 }
@@ -1422,9 +1482,13 @@ static bool qmi_ready(struct qcusbnet *dev, u16 timeout)
 
 	if (!device_valid(dev)) {
 		ERR("Invalid device\n");
-		return -EFAULT;
+		return false;
 	}
 
+	wbufsize = qmux_size + 6;
+	wbuf = kmalloc(wbufsize, GFP_KERNEL);
+	if (wbuf == NULL)
+		return false;
 
 	for (now = 0; now < timeout; now += 100) {
 		sema_init(&sem, 0);
@@ -1468,9 +1532,11 @@ static bool qmi_ready(struct qcusbnet *dev, u16 timeout)
 
 	DBG("QMI Ready after %u milliseconds\n", now);
 
-	/* 3580 and newer doesn't need a delay; older needs 5000ms */
-	if (qcusbnet2k_fwdelay)
-		msleep(qcusbnet2k_fwdelay * 1000);
+	// 3580 and newer firmware does not require this delay
+	if (safeenumdelay != 0)
+	{
+		msleep(5000);
+	}
 
 	return true;
 }
@@ -1664,6 +1730,3 @@ static int qmidms_getmeid(struct qcusbnet *dev)
 	client_free(dev, cid);
 	return 0;
 }
-
-module_param(qcusbnet2k_fwdelay, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(qcusbnet2k_fwdelay, "Delay for old firmware");
