@@ -1027,12 +1027,12 @@ static void cpcap_audio_configure_power(int power)
 	}
 
 	if (power) {
-		pr_info("%s: regulator -> enable\n", __func__);
+		pr_debug("%s: regulator -> enable\n", __func__);
 		regulator_enable(audio_reg);
 		regulator_set_mode(audio_reg, REGULATOR_MODE_NORMAL);
 		mdelay(SLEEP_ACTIVATE_POWER_DELAY_MS);
 	} else {
-		pr_info("%s: regulator -> standby\n", __func__);
+		pr_debug("%s: regulator -> standby\n", __func__);
 		regulator_set_mode(audio_reg, REGULATOR_MODE_STANDBY);
 		regulator_disable(audio_reg);
 	}
