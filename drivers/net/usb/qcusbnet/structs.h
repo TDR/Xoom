@@ -63,7 +63,6 @@ struct qmidev {
 	dev_t devnum;
 	struct class *devclass;
 	struct cdev cdev;
-	bool cdevinitialized;
 	struct urb *readurb;
 	struct urbsetup *readsetup;
 	void *readbuf;

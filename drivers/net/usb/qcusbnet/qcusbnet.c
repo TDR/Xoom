@@ -1,5 +1,5 @@
 /* qcusbnet.c - gobi network device
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,13 +21,11 @@
 #include "qmi.h"
 #include "qcusbnet.h"
 
-#define DRIVER_VERSION "1.0.170"
+#define DRIVER_VERSION "1.0.110"
 #define DRIVER_AUTHOR "Qualcomm Innovation Center"
 #define DRIVER_DESC "QCUSBNet2k"
 
 int debug;
-int safeenumdelay = 1;
-int interruptible = 1;
 static struct class *devclass;
 
 int qc_suspend(struct usb_interface *iface, pm_message_t event)
@@ -136,7 +134,7 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 
 	if (iface->num_altsetting != 1) {
 		ERR("invalid num_altsetting %u\n", iface->num_altsetting);
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	numends = iface->cur_altsetting->desc.bNumEndpoints;
@@ -144,7 +142,7 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 		endpoint = iface->cur_altsetting->endpoint + i;
 		if (!endpoint) {
 			ERR("invalid endpoint %u\n", i);
-			return -ENODEV;
+			return -EINVAL;
 		}
 
 		if (usb_endpoint_is_bulk_in(&endpoint->desc))
@@ -155,13 +153,13 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 
 	if (!in || !out) {
 		ERR("invalid bulk endpoints\n");
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	if (usb_set_interface(usbnet->udev,
 			      iface->cur_altsetting->desc.bInterfaceNumber, 0))	{
 		ERR("unable to set interface\n");
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	usbnet->in = usb_rcvbulkpipe(usbnet->udev, in->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
@@ -187,10 +185,7 @@ static void qcnet_unbind(struct usbnet *usbnet, struct usb_interface *iface)
 	kfree(usbnet->net->netdev_ops);
 	usbnet->net->netdev_ops = NULL;
 
-	iface->needs_remote_wakeup = 0;
-
 	kfree(dev);
-	dev = NULL;
 }
 
 static void qcnet_urbhook(struct urb *urb)
@@ -251,8 +246,6 @@ static void qcnet_txtimeout(struct net_device *netdev)
 	spin_unlock_irqrestore(&worker->urbs_lock, listflags);
 
 	complete(&worker->work);
-
-	return;
 }
 
 static int qcnet_worker(void *arg)
@@ -410,7 +403,6 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 
 	usb_fill_bulk_urb(req->urb, dev->usbnet->udev, dev->usbnet->out,
 			  data, skb->len, qcnet_urbhook, worker);
-	req->urb->transfer_flags |= URB_FREE_BUFFER;
 
 	spin_lock_irqsave(&worker->urbs_lock, listflags);
 	list_add_tail(&req->node, &worker->urbs);
@@ -557,20 +549,16 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 		return status;
 	}
 
-	iface->needs_remote_wakeup = 1;
-
 	usbnet = usb_get_intfdata(iface);
 
 	if (!usbnet || !usbnet->net) {
 		ERR("failed to get netdevice\n");
-		usbnet_disconnect(iface);
 		return -ENXIO;
 	}
 
 	dev = kmalloc(sizeof(struct qcusbnet), GFP_KERNEL);
 	if (!dev) {
 		ERR("failed to allocate device buffers\n");
-		usbnet_disconnect(iface);
 		return -ENOMEM;
 	}
 
@@ -581,7 +569,6 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 	netdevops = kmalloc(sizeof(struct net_device_ops), GFP_KERNEL);
 	if (!netdevops) {
 		ERR("failed to allocate net device ops\n");
-		usbnet_disconnect(iface);
 		return -ENOMEM;
 	}
 	memcpy(netdevops, usbnet->net->netdev_ops, sizeof(struct net_device_ops));
@@ -617,7 +604,7 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 
 	status = qc_register(dev);
 	if (status)
-		usbnet_disconnect(iface);
+		qc_deregister(dev);
 
 	return status;
 }
@@ -660,9 +647,3 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debuging enabled or not");
-
-module_param(safeenumdelay, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(safeenumdelay, "Delay enumeration to allow firmware to be ready (needed on firmware < 3580)");
-
-module_param(interruptible, bool, S_IRUGO | S_IWUSR );
-MODULE_PARM_DESC(interruptible, "Listen for and return on user interrupt");

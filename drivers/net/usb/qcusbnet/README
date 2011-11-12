@@ -1,5 +1,5 @@
-Gobi2000 network driver for HP 1.0.170
-07/13/2011
+Gobi2000 network driver for HP 1.0.110
+06/18/2010
 
 This readme covers important information concerning
 the QCUSBNet2kHP driver, provided in correlation with
@@ -12,7 +12,6 @@ Table of Contents
 3. What's new in this release
 4. Notes
 5. Known issues
-6. Known platform issues
 
 -------------------------------------------------------------------------------
 
@@ -36,10 +35,10 @@ a. Navigate to the folder "QCUSBNet2k" that contains:
       Makefile
       QCUSBNetHP.c
       QMIDevice.c
-      QMIDevice.h
-      Structs.h
+      qmidevice.h
+      structs.h
       QMI.c
-      QMI.h
+      qmi.h
 b. (only required for kernels prior to 2.6.25) Create a symbolic link
    to the usbnet.h file in your kernel sources:
       ln -s <linux sources>/drivers/net/usb/usbnet.h ./
@@ -59,40 +58,14 @@ f. (Optional) Load the driver manually with the command:
 
 3. WHAT'S NEW
 
-This Release (Gobi2000 network driver for HP 1.0.170) 07/13/2011
-a. Fix possible deadlock in QCUSBNetTXTimeout()
-b. Fix memory leak on data transmission
-
-Prior Release (Gobi2000 network driver for HP 1.0.160) 05/18/2011
-a. Add support for kernels up to 2.6.38
-
-Priot Release (Gobi2000 network driver for HP 1.0.150) 02/28/2011
-a. In cases of QMI read errors, discard the error and continue reading.
-b. Add "interruptible" parameter, which may be disabled for debugging purposes.
-
-Prior Release (Gobi2000 network driver for HP 1.0.140) 01/14/2011
-a. Fix rare kernel PANIC if a process terminates while file handle close
-   or device removal is in progress.
-
-Prior Release (Gobi2000 network driver for HP 1.0.130) 10/15/2010
-a. Fix possible kernel WARNING if device removed before QCWWANDisconnect().
-b. Fix multiple memory leaks in error cases.
-c. Fix possible deadlock during error case in driver initialization.
-
-Prior Release (Gobi2000 network driver for HP 1.0.120) 08/16/2010
-a. Change semaphore to completion type for thread notification.
-b. Add safeEnumDelay parameter to allow users to disable enumeration delay.
-c. Correct error handling during enumeration.
-d. Prevent possible initialization hang when using uhci-hcd driver.
-
-Prior Release (Gobi2000 network driver for HP 1.0.110) 06/18/2010
+This Release (Gobi2000 network driver for HP 1.0.110) 06/18/2010
 a. Correctly initialize semaphore during probe function.
 
 Prior Release (Gobi2000 network driver for HP 1.0.100) 06/02/2010
 a. Merge QCQMI driver into QCUSBNet2k driver, removing dependency.
 
 Prior Release (Gobi2000 network driver for HP 1.0.90) 05/13/2010
-a. Fix UserspaceClose() from a thread
+a. Fix devqmi_close() from a thread
 b. Add 2.6.33 kernel support
 
 Prior Release (Gobi2000 network driver for HP 1.0.80) 04/19/2010
@@ -135,24 +108,8 @@ c. Ownership, group, and permissions are managed by your system
 
 -------------------------------------------------------------------------------
 
-4. KNOWN ISSUES
+5. KNOWN ISSUES
 
 No known issues.
-
--------------------------------------------------------------------------------
-
-4. KNOWN PLATFORM ISSUES
-
-a. Enabling autosuspend:
-   Autosuspend is supported by the Gobi2000 module and its drivers,
-   but by default it is not enabled by the open source kernel. As such,
-   the Gobi2000 module will not enter autosuspend unless the
-   user specifically turns on autosuspend with the command:
-      echo auto > /sys/bus/usb/devices/.../power/level
-b. Ksoftirq using 100% CPU:
-   There is a known issue with the open source usbnet driver that can
-   result in infinite software interrupts. The fix for this is to test
-   (in the usbnet_bh() function) if the usb_device can submit URBs before
-   attempting to submit the response URB buffers.
 
 -------------------------------------------------------------------------------
