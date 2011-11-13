@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.36.4
-# Sat Oct 29 19:35:36 2011
+# Sun Nov 13 17:48:40 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1908,7 +1908,7 @@ CONFIG_MMC=y
 # CONFIG_MMC_DEBUG is not set
 CONFIG_MMC_UNSAFE_RESUME=y
 CONFIG_MMC_EMBEDDED_SDIO=y
-CONFIG_MMC_PARANOID_SD_INIT=y
+# CONFIG_MMC_PARANOID_SD_INIT is not set
 
 #
 # MMC/SD/SDIO Card Drivers
