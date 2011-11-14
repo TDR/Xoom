@@ -217,7 +217,7 @@ static void alloc_handle(struct nvmap_client *client, size_t align,
 		}
 	} else if (type & NVMAP_HEAP_IOVMM) {
 		size_t reserved = PAGE_ALIGN(h->size);
-		int commit;
+		int commit = 0;
 		int ret;
 
 		BUG_ON(align > PAGE_SIZE);
@@ -225,7 +225,9 @@ static void alloc_handle(struct nvmap_client *client, size_t align,
 		/* increment the committed IOVM space prior to allocation
 		 * to avoid race conditions with other threads simultaneously
 		 * allocating. */
-		commit = atomic_add_return(reserved, &client->iovm_commit);
+		if (!client->super)
+			commit = atomic_add_return(reserved,
+						   &client->iovm_commit);
 
 		if (commit < client->iovm_limit)
 			ret = handle_page_alloc(client, h, false);
@@ -236,7 +238,8 @@ static void alloc_handle(struct nvmap_client *client, size_t align,
 			h->heap_pgalloc = true;
 			h->alloc = true;
 		} else {
-			atomic_sub(reserved, &client->iovm_commit);
+			if (!client->super)
+				atomic_sub(reserved, &client->iovm_commit);
 		}
 
 	} else if (type & NVMAP_HEAP_SYSMEM) {
@@ -304,6 +307,7 @@ int nvmap_alloc_handle_id(struct nvmap_client *client,
 	h->secure = !!(flags & NVMAP_HANDLE_SECURE);
 	h->flags = (flags & NVMAP_HANDLE_CACHE_FLAG);
 
+#ifndef CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM
 #ifdef CONFIG_NVMAP_ALLOW_SYSMEM
 	/* Allow single pages allocations in system memory to save
 	 * carveout space and avoid extra iovm mappings */
@@ -322,6 +326,7 @@ int nvmap_alloc_handle_id(struct nvmap_client *client,
 				heap_mask |= NVMAP_HEAP_SYSMEM;
 		}
 	}
+#endif
 #endif
 
 	/* This restriction is deprecated as alignments greater than
@@ -395,7 +400,7 @@ void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 	pins = atomic_read(&ref->pin);
 	rb_erase(&ref->node, &client->handle_refs);
 
-	if (h->alloc && h->heap_pgalloc && !h->pgalloc.contig)
+	if (h->alloc && h->heap_pgalloc && !h->pgalloc.contig && !client->super)
 		atomic_sub(h->size, &client->iovm_commit);
 
 	if (h->alloc && !h->heap_pgalloc)

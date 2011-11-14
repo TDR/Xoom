@@ -379,13 +379,18 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 #ifdef CONFIG_PM
 static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 {
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
+	u32 port_status;
 	int error_status = 0;
 
 	error_status = ehci_bus_suspend(hcd);
 	if (!error_status && tegra->power_down_on_bus_suspend) {
-		tegra_usb_suspend(hcd);
-		tegra->bus_suspended = 1;
+		port_status = ehci_readl(ehci, &ehci->regs->port_status[0]);
+		if (!port_status & PORT_CONNECT) {
+			tegra_usb_suspend(hcd);
+			tegra->bus_suspended = 1;
+		}
 	}
 
 	return error_status;
@@ -687,6 +692,9 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 
 	if (tegra == NULL || hcd == NULL)
 		return -EINVAL;
+	/* make sure controller is on as we will touch its registers */
+	if (!tegra->host_resumed)
+		tegra_ehci_power_up(hcd);
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (tegra->transceiver) {
