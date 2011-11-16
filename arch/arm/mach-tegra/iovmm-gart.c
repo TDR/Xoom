@@ -124,7 +124,6 @@ static void do_gart_setup(struct gart_device *gart, const u32 *data)
 		wmb();
 		reg += 1 << GART_PAGE_SHIFT;
 	}
-	wmb();
 }
 
 static void gart_resume(struct tegra_iovmm_device *dev)
@@ -280,7 +279,7 @@ static int gart_map(struct tegra_iovmm_device *dev,
 
 		spin_unlock(&gart->pte_lock);
 	}
-	wmb();
+
 	return 0;
 
 fail:
@@ -293,7 +292,7 @@ fail:
 		wmb();
 	}
 	spin_unlock(&gart->pte_lock);
-	wmb();
+
 	return -ENOMEM;
 }
 
@@ -318,7 +317,6 @@ static void gart_unmap(struct tegra_iovmm_device *dev,
 		gart_page += 1 << GART_PAGE_SHIFT;
 	}
 	spin_unlock(&gart->pte_lock);
-	wmb();
 }
 
 static void gart_map_pfn(struct tegra_iovmm_device *dev,
@@ -333,7 +331,6 @@ static void gart_map_pfn(struct tegra_iovmm_device *dev,
 	writel(GART_PTE(pfn), gart->regs + GART_ENTRY_DATA);
 	wmb();
 	spin_unlock(&gart->pte_lock);
-	wmb();
 }
 
 static struct tegra_iovmm_domain *gart_alloc_domain(
