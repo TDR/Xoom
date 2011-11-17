@@ -116,6 +116,7 @@ static struct usb_serial_driver moto_flashmdm_device = {
 	.id_table = id_table,
 	.num_ports = 1,
 	.attach = moto_flashmdm_attach,
+	.usb_driver = &moto_flashmdm_driver,
 };
 
 static int __init moto_flashmdm_init(void)
