@@ -60,6 +60,7 @@
 
 #include <linux/usb/android_composite.h>
 #include <linux/usb/f_accessory.h>
+#include <linux/usb/oob_wake.h>
 
 #include "board.h"
 #include "board-stingray.h"
@@ -206,6 +207,29 @@ static struct platform_device cpcap_audio_device = {
 	.dev    = {
 		.platform_data = &cpcap_audio_pdata,
 	},
+};
+
+static struct resource oob_wake_resources[] = {
+	[0] = {
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PW3),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PW3),
+	},
+};
+/* LTE USB Out-of-Band Wakeup Device */
+static struct oob_wake_platform_data oob_wake_pdata = {
+	.vendor = 0x22b8,
+	.product = 0x4267,
+};
+
+static struct platform_device oob_wake_device = {
+	.name   = "oob-wake",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &oob_wake_pdata,
+	},
+	.resource = oob_wake_resources,
+	.num_resources = ARRAY_SIZE(oob_wake_resources),
 };
 
 /* This is the CPCAP Stereo DAC interface. */
@@ -684,6 +708,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&pmu_device,
 	&tegra_aes_device,
 	&tegra_wdt_device,
+	&oob_wake_device,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -691,6 +716,7 @@ extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
 static struct tegra_sdhci_platform_data stingray_sdhci_sdcard_platform_data = {
 	.clk_id = NULL,
 	.force_hs = 0,
+	.rt_disable = 1,
 	.cd_gpio = TEGRA_GPIO_PI5,
 	.wp_gpio = -1,
 	.power_gpio = -1,
@@ -699,6 +725,7 @@ static struct tegra_sdhci_platform_data stingray_sdhci_sdcard_platform_data = {
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 	.clk_id = NULL,
 	.force_hs = 0,
+	.rt_disable = 0,
 	.cd_gpio = -1,
 	.wp_gpio = -1,
 	.power_gpio = -1,
@@ -742,6 +769,7 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "i2s2",	"pll_p",	2000000,	false},
 	{ "sdmmc2",	"pll_m",	48000000,	false},
 	{ "spdif_out",	"pll_a_out0",	5644800,	false},
+	{ "sdmmc3",	"pll_m",	48000000,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -1119,6 +1147,16 @@ static void __init tegra_stingray_init(void)
 		pr_err("Failed to set wifi sdmmc tap delay\n");
 	}
 
+	/* Set the SDMMC3 (external sd card) tap delay to 5.  This value is determined
+	 * based on propagation delay on the PCB traces. */
+	clk = clk_get_sys("sdhci-tegra.2", NULL);
+	if (!IS_ERR(clk)) {
+		tegra_sdmmc_tap_delay(clk, 5);
+		clk_put(clk);
+	} else {
+		pr_err("Failed to set external sd card sdmmc tap delay\n");
+	}
+
 	/* Stingray has a USB switch that disconnects the usb port from the T20
 	   unless a factory cable is used, the factory jumper is set, or the
 	   usb_data_en gpio is set.
@@ -1212,6 +1250,14 @@ static void __init tegra_stingray_init(void)
 	gpio_request(TEGRA_GPIO_PD4, "spdif_enable");
 	gpio_direction_output(TEGRA_GPIO_PD4, 0);
 	gpio_export(TEGRA_GPIO_PD4, false);
+
+	/* support out-of-band wake for usb1 */
+	tegra_gpio_enable(TEGRA_GPIO_PW3);
+	if (gpio_request(TEGRA_GPIO_PW3, "oob-host-wake")) {
+		pr_err("Failed to request out-of-band host wake gpio\n");
+	}
+	gpio_direction_input(TEGRA_GPIO_PW3);
+	gpio_export(TEGRA_GPIO_PW3, false);
 
 	/* Enable 4329 Power GPIO */
 	tegra_gpio_enable(TEGRA_GPIO_PU4);
