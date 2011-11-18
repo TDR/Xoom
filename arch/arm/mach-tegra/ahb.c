@@ -23,10 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/version.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 #include <linux/syscore_ops.h>
-#endif
 
 #include <mach/iomap.h>
 
@@ -164,12 +161,10 @@ void tegra_ahbgizmo_resume(void)
 #define tegra_ahbgizmo_resume NULL
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 static struct syscore_ops tegra_ahbgizmo_syscore_ops = {
 	.suspend = tegra_ahbgizmo_suspend,
 	.resume = tegra_ahbgizmo_resume,
 };
-#endif
 
 static int __init tegra_init_ahb_gizmo_settings(void)
 {
@@ -216,9 +211,7 @@ static int __init tegra_init_ahb_gizmo_settings(void)
 	val |= PREFETCH_ENB | USB2_MST_ID | ADDR_BNDRY(0xc) | INACTIVITY_TIMEOUT(0x1000);
 	gizmo_writel(val, AHB_MEM_PREFETCH_CFG4);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	register_syscore_ops(&tegra_ahbgizmo_syscore_ops);
-#endif
 
 	return 0;
 }
