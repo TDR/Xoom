@@ -1,5 +1,5 @@
 /* qcusbnet.c - gobi network device
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,83 +21,17 @@
 #include "qmi.h"
 #include "qcusbnet.h"
 
-#include <linux/ctype.h>
-
-#define DRIVER_VERSION "1.0.110+google"
+#define DRIVER_VERSION "1.0.110"
 #define DRIVER_AUTHOR "Qualcomm Innovation Center"
 #define DRIVER_DESC "QCUSBNet2k"
 
-static LIST_HEAD(qcusbnet_list);
-static DEFINE_MUTEX(qcusbnet_lock);
-
-int qcusbnet_debug;
+int debug;
 static struct class *devclass;
-
-#ifdef CONFIG_HAS_WAKELOCK
-#define QC_WAKE_LOCK wake_lock
-#define QC_WAKE_UNLOCK(X) wake_lock_timeout(X, HZ/10)
-#else
-#define QC_WAKE_LOCK
-#define QC_WAKE_UNLOCK
-#endif /* CONFIG_HAS_WAKELOCK */
-
-static void free_dev(struct kref *ref)
-{
-	struct qcusbnet *dev = container_of(ref, struct qcusbnet, refcount);
-#ifdef CONFIG_HAS_WAKELOCK
-	wake_lock_destroy(&dev->wake_lock);
-#endif /* CONFIG_HAS_WAKELOCK */
-	list_del(&dev->node);
-	kfree(dev);
-}
-
-void qcusbnet_put(struct qcusbnet *dev)
-{
-	mutex_lock(&qcusbnet_lock);
-	kref_put(&dev->refcount, free_dev);
-	mutex_unlock(&qcusbnet_lock);
-}
-
-struct qcusbnet *qcusbnet_get(struct qcusbnet *key)
-{
-	/* Given a putative qcusbnet struct, return either the struct itself
-	 * (with a ref taken) if the struct is still visible, or NULL if it's
-	 * not. This prevents object-visibility races where someone is looking
-	 * up an object as the last ref gets dropped; dropping the last ref and
-	 * removing the object from the list are atomic with respect to getting
-	 * a new ref. */
-	struct qcusbnet *entry;
-	mutex_lock(&qcusbnet_lock);
-	list_for_each_entry(entry, &qcusbnet_list, node) {
-		if (entry == key) {
-			kref_get(&entry->refcount);
-			mutex_unlock(&qcusbnet_lock);
-			return entry;
-		}
-	}
-	mutex_unlock(&qcusbnet_lock);
-	return NULL;
-}
-
-struct qcusbnet *cdev_to_qcusbnet(struct cdev *cdev)
-{
-	struct qcusbnet *entry;
-	mutex_lock(&qcusbnet_lock);
-	list_for_each_entry(entry, &qcusbnet_list, node) {
-		if (entry->qmi.cdev == cdev) {
-			mutex_unlock(&qcusbnet_lock);
-			return entry;
-		}
-	}
-	mutex_unlock(&qcusbnet_lock);
-	return NULL;
-}
 
 int qc_suspend(struct usb_interface *iface, pm_message_t event)
 {
 	struct usbnet *usbnet;
 	struct qcusbnet *dev;
-	int ret;
 
 	if (!iface)
 		return -ENOMEM;
@@ -131,12 +65,7 @@ int qc_suspend(struct usb_interface *iface, pm_message_t event)
 		usbnet->udev->reset_resume = 1;
 	}
 
-	ret = usbnet_suspend(iface, event);
-	if (!ret && (event.event & PM_EVENT_AUTO)) {
-		QC_WAKE_UNLOCK(&dev->wake_lock);
-	}
-
-	return ret;
+	return usbnet_suspend(iface, event);
 }
 
 static int qc_resume(struct usb_interface *iface)
@@ -167,29 +96,21 @@ static int qc_resume(struct usb_interface *iface)
 	DBG("resuming from power mode %d\n", oldstate);
 
 	if (oldstate & PM_EVENT_SUSPEND) {
-		QC_WAKE_LOCK(&dev->wake_lock);
 		qc_cleardown(dev, DOWN_DRIVER_SUSPENDED);
-		netif_start_queue(usbnet->net);
+
 		ret = usbnet_resume(iface);
 		if (ret) {
 			ERR("usbnet_resume error %d\n", ret);
-			QC_WAKE_UNLOCK(&dev->wake_lock);
 			return ret;
 		}
 
 		ret = qc_startread(dev);
 		if (ret) {
 			ERR("qc_startread error %d\n", ret);
-			QC_WAKE_UNLOCK(&dev->wake_lock);
 			return ret;
 		}
 
-		if (dev->worker.thread)
-			wake_up_process(dev->worker.thread);
-
-		/* Force autopm to schedule an auto suspend */
-		usb_autopm_get_interface_no_resume(iface);
-		usb_autopm_put_interface_async(iface);
+		complete(&dev->worker.work);
 	} else {
 		DBG("nothing to resume\n");
 		return 0;
@@ -254,21 +175,6 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	return 0;
 }
 
-#define XOOM_DOWNLINK_MTU 1500
-static int xoom_qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
-{
-	int status = qcnet_bind(usbnet, iface);
-
-	if (!status) {
-		usbnet->rx_urb_size = XOOM_DOWNLINK_MTU +
-					usbnet->net->hard_header_len;
-		usbnet->udev->autosuspend_delay = msecs_to_jiffies(1000);
-		usbnet->udev->parent->autosuspend_delay = 0;
-	}
-
-	return status;
-}
-
 static void qcnet_unbind(struct usbnet *usbnet, struct usb_interface *iface)
 {
 	struct qcusbnet *dev = (struct qcusbnet *)usbnet->data[0];
@@ -278,8 +184,8 @@ static void qcnet_unbind(struct usbnet *usbnet, struct usb_interface *iface)
 
 	kfree(usbnet->net->netdev_ops);
 	usbnet->net->netdev_ops = NULL;
-	/* drop the list's ref */
-	qcusbnet_put(dev);
+
+	kfree(dev);
 }
 
 static void qcnet_urbhook(struct urb *urb)
@@ -297,26 +203,9 @@ static void qcnet_urbhook(struct urb *urb)
 	spin_lock_irqsave(&worker->active_lock, flags);
 	worker->active = ERR_PTR(-EAGAIN);
 	spin_unlock_irqrestore(&worker->active_lock, flags);
-	wake_up_process(worker->thread);
+	/* XXX-fix race against qcnet_stop()? */
+	complete(&worker->work);
 	usb_free_urb(urb);
-}
-
-static void qcnet_killactive(struct worker *worker)
-{
-	struct urb *active;
-	unsigned long flags;
-
-	spin_lock_irqsave(&worker->active_lock, flags);
-	active = worker->active;
-	if (IS_ERR_OR_NULL(active)) {
-		spin_unlock_irqrestore(&worker->active_lock, flags);
-		return;
-	}
-	usb_get_urb(active);
-	spin_unlock_irqrestore(&worker->active_lock, flags);
-
-	usb_kill_urb(active);
-	usb_put_urb(active);
 }
 
 static void qcnet_txtimeout(struct net_device *netdev)
@@ -325,7 +214,7 @@ static void qcnet_txtimeout(struct net_device *netdev)
 	struct qcusbnet *dev;
 	struct worker *worker;
 	struct urbreq *req;
-	unsigned long flags;
+	unsigned long activeflags, listflags;
 	struct usbnet *usbnet = netdev_priv(netdev);
 
 	if (!usbnet || !usbnet->net) {
@@ -342,18 +231,21 @@ static void qcnet_txtimeout(struct net_device *netdev)
 
 	DBG("\n");
 
-	qcnet_killactive(worker);
+	spin_lock_irqsave(&worker->active_lock, activeflags);
+	if (worker->active)
+		usb_kill_urb(worker->active);
+	spin_unlock_irqrestore(&worker->active_lock, activeflags);
 
-	spin_lock_irqsave(&worker->urbs_lock, flags);
+	spin_lock_irqsave(&worker->urbs_lock, listflags);
 	list_for_each_safe(node, tmp, &worker->urbs) {
 		req = list_entry(node, struct urbreq, node);
 		usb_free_urb(req->urb);
 		list_del(&req->node);
 		kfree(req);
 	}
-	spin_unlock_irqrestore(&worker->urbs_lock, flags);
+	spin_unlock_irqrestore(&worker->urbs_lock, listflags);
 
-	wake_up_process(worker->thread);
+	complete(&worker->work);
 }
 
 static int qcnet_worker(void *arg)
@@ -362,23 +254,25 @@ static int qcnet_worker(void *arg)
 	unsigned long activeflags, listflags;
 	struct urbreq *req;
 	int status;
-        bool log_errors = 1;
 	struct usb_device *usbdev;
-	struct usb_interface *iface;
 	struct worker *worker = arg;
 	if (!worker) {
 		ERR("passed null pointer\n");
 		return -EINVAL;
 	}
 
-	iface = worker->iface;
-	usbdev = interface_to_usbdev(iface);
+	usbdev = interface_to_usbdev(worker->iface);
 
 	DBG("traffic thread started\n");
 
-	while (1) {
+	while (!kthread_should_stop()) {
+		wait_for_completion_interruptible(&worker->work);
+
 		if (kthread_should_stop()) {
-			qcnet_killactive(worker);
+			spin_lock_irqsave(&worker->active_lock, activeflags);
+			if (worker->active)
+				usb_kill_urb(worker->active);
+			spin_unlock_irqrestore(&worker->active_lock, activeflags);
 
 			spin_lock_irqsave(&worker->urbs_lock, listflags);
 			list_for_each_safe(node, tmp, &worker->urbs) {
@@ -392,19 +286,16 @@ static int qcnet_worker(void *arg)
 			break;
 		}
 
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		spin_lock_irqsave(&worker->active_lock, activeflags);
 		if (IS_ERR(worker->active) && PTR_ERR(worker->active) == -EAGAIN) {
 			worker->active = NULL;
 			spin_unlock_irqrestore(&worker->active_lock, activeflags);
-			usb_autopm_put_interface(iface);
+			usb_autopm_put_interface(worker->iface);
 			spin_lock_irqsave(&worker->active_lock, activeflags);
 		}
 
 		if (worker->active) {
 			spin_unlock_irqrestore(&worker->active_lock, activeflags);
-			schedule();
 			continue;
 		}
 
@@ -412,11 +303,8 @@ static int qcnet_worker(void *arg)
 		if (list_empty(&worker->urbs)) {
 			spin_unlock_irqrestore(&worker->urbs_lock, listflags);
 			spin_unlock_irqrestore(&worker->active_lock, activeflags);
-			schedule();
 			continue;
 		}
-
-		set_current_state(TASK_RUNNING);
 
 		req = list_first_entry(&worker->urbs, struct urbreq, node);
 		list_del(&req->node);
@@ -425,24 +313,11 @@ static int qcnet_worker(void *arg)
 		worker->active = req->urb;
 		spin_unlock_irqrestore(&worker->active_lock, activeflags);
 
-		device_lock(&iface->dev);
-		if (iface->dev.power.status >= DPM_OFF ||
-				iface->dev.power.status == DPM_RESUMING) {
-			usb_autopm_get_interface_no_resume(iface);
-			status = 0;
-		} else {
-			status = usb_autopm_get_interface(iface);
-		}
-		device_unlock(&iface->dev);
-
+		status = usb_autopm_get_interface(worker->iface);
 		if (status < 0) {
-                        if (log_errors) {
-			    ERR("unable to autoresume interface: %d, power status: %d\n", status, iface->dev.power.status);
-                            log_errors = 0;
-                        }
-
+			ERR("unable to autoresume interface: %d\n", status);
 			if (status == -EPERM)
-				qc_suspend(iface, PMSG_SUSPEND);
+				qc_suspend(worker->iface, PMSG_SUSPEND);
 
 			spin_lock_irqsave(&worker->urbs_lock, listflags);
 			list_add(&req->node, &worker->urbs);
@@ -452,7 +327,6 @@ static int qcnet_worker(void *arg)
 			worker->active = NULL;
 			spin_unlock_irqrestore(&worker->active_lock, activeflags);
 
-                        msleep(20);
 			continue;
 		}
 
@@ -463,13 +337,11 @@ static int qcnet_worker(void *arg)
 			usb_free_urb(worker->active);
 			worker->active = NULL;
 			spin_unlock_irqrestore(&worker->active_lock, activeflags);
-			usb_autopm_put_interface(iface);
-			wake_up_process(worker->thread);
+			usb_autopm_put_interface(worker->iface);
+			complete(&worker->work);
 		}
 
 		kfree(req);
-
-                log_errors = 1;
 	}
 
 	DBG("traffic thread exiting\n");
@@ -502,9 +374,7 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (qc_isdown(dev, DOWN_DRIVER_SUSPENDED)) {
 		ERR("device is suspended\n");
-		netif_stop_queue(usbnet->net);
-		if (qcusbnet_debug)
-			dump_stack();
+		dump_stack();
 		return NETDEV_TX_BUSY;
 	}
 
@@ -533,13 +403,12 @@ static int qcnet_startxmit(struct sk_buff *skb, struct net_device *netdev)
 
 	usb_fill_bulk_urb(req->urb, dev->usbnet->udev, dev->usbnet->out,
 			  data, skb->len, qcnet_urbhook, worker);
-	req->urb->transfer_flags |= URB_FREE_BUFFER;
 
 	spin_lock_irqsave(&worker->urbs_lock, listflags);
 	list_add_tail(&req->node, &worker->urbs);
 	spin_unlock_irqrestore(&worker->urbs_lock, listflags);
 
-	wake_up_process(worker->thread);
+	complete(&worker->work);
 
 	netdev->trans_start = jiffies;
 	dev_kfree_skb_any(skb);
@@ -571,6 +440,7 @@ static int qcnet_open(struct net_device *netdev)
 	dev->worker.active = NULL;
 	spin_lock_init(&dev->worker.urbs_lock);
 	spin_lock_init(&dev->worker.active_lock);
+	init_completion(&dev->worker.work);
 
 	dev->worker.thread = kthread_run(qcnet_worker, &dev->worker, "qcnet_worker");
 	if (IS_ERR(dev->worker.thread)) {
@@ -607,14 +477,12 @@ int qcnet_stop(struct net_device *netdev)
 	}
 
 	qc_setdown(dev, DOWN_NET_IFACE_STOPPED);
+	complete(&dev->worker.work);
 	kthread_stop(dev->worker.thread);
 	DBG("thread stopped\n");
 
-	if (dev->stop != NULL) {
-		/* stop interface will do a put on this iface */
-		usb_autopm_get_interface_no_resume(dev->iface);
+	if (dev->stop != NULL)
 		return dev->stop(netdev);
-	}
 	return 0;
 }
 
@@ -622,14 +490,6 @@ static const struct driver_info qc_netinfo = {
 	.description   = "QCUSBNet Ethernet Device",
 	.flags         = FLAG_ETHER,
 	.bind          = qcnet_bind,
-	.unbind        = qcnet_unbind,
-	.data          = 0,
-};
-
-static const struct driver_info xoom_qc_netinfo = {
-	.description   = "Xoom QCUSBNet Ethernet Device",
-	.flags         = FLAG_ETHER,
-	.bind          = xoom_qcnet_bind,
 	.unbind        = qcnet_unbind,
 	.data          = 0,
 };
@@ -667,13 +527,9 @@ static const struct usb_device_id qc_vidpids[] = {
 	MKVIDPID(0x05c6, 0x9225),	/* Sony Gobi 2000 */
 	MKVIDPID(0x05c6, 0x9235),	/* Top Global Gobi 2000 */
 	MKVIDPID(0x05c6, 0x9275),	/* iRex Technologies Gobi 2000 */
-
-	MKVIDPID(0x05c6, 0x920d),	/* Qualcomm Gobi 3000 */
-	MKVIDPID(0x1410, 0xa021),	/* Novatel Gobi 3000 */
-
 	{
 		USB_DEVICE_AND_INTERFACE_INFO(0x22B8, 0x2A70, 0xff, 0xfb, 0xff), /* Motorola Xoom */
-		.driver_info = (unsigned long)&xoom_qc_netinfo
+		.driver_info = (unsigned long)&qc_netinfo
 	},
 	{ }
 };
@@ -700,16 +556,11 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 		return -ENXIO;
 	}
 
-	dev = kzalloc(sizeof(struct qcusbnet), GFP_KERNEL);
+	dev = kmalloc(sizeof(struct qcusbnet), GFP_KERNEL);
 	if (!dev) {
 		ERR("failed to allocate device buffers\n");
 		return -ENOMEM;
 	}
-#ifdef CONFIG_HAS_WAKELOCK
-	wake_lock_init(&dev->wake_lock, WAKE_LOCK_SUSPEND,
-		iface->dev.driver->name);
-#endif /* CONFIG_HAS_WAKELOCK */
-
 
 	usbnet->data[0] = (unsigned long)dev;
 
@@ -736,15 +587,15 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 	dev->iface = iface;
 	memset(&(dev->meid), '0', 14);
 
-	mutex_init(&dev->mutex);
+	DBG("Mac Address: %pM\n", dev->usbnet->net->dev_addr);
+
 	dev->valid = false;
-	memset(&dev->qmi, 0, sizeof(dev->qmi));
+	memset(&dev->qmi, 0, sizeof(struct qmidev));
 
 	dev->qmi.devclass = devclass;
 
-	kref_init(&dev->refcount);
-	INIT_LIST_HEAD(&dev->node);
 	INIT_LIST_HEAD(&dev->qmi.clients);
+	init_completion(&dev->worker.work);
 	spin_lock_init(&dev->qmi.clients_lock);
 
 	dev->down = 0;
@@ -753,12 +604,7 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 
 	status = qc_register(dev);
 	if (status)
-		return status;
-
-	mutex_lock(&qcusbnet_lock);
-	/* Give our initial ref to the list */
-	list_add(&dev->node, &qcusbnet_list);
-	mutex_unlock(&qcusbnet_lock);
+		qc_deregister(dev);
 
 	return status;
 }
@@ -799,5 +645,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("Dual BSD/GPL");
 
-module_param(qcusbnet_debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(qcusbnet_debug, "Debugging enabled or not");
+module_param(debug, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debuging enabled or not");

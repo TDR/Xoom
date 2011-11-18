@@ -25,20 +25,15 @@
 #include <linux/usb.h>
 #include <linux/version.h>
 #include <linux/cdev.h>
-#include <linux/kobject.h>
 #include <linux/kthread.h>
 
 #include <linux/usb/usbnet.h>
 
 #include <linux/fdtable.h>
 
-#ifdef CONFIG_HAS_WAKELOCK
-#include <linux/wakelock.h>
-#endif /* CONFIG_HAS_WAKELOCK */
-
 #define DBG(fmt, arg...)						\
 do {									\
-	if (qcusbnet_debug == 1)					\
+	if (debug == 1)							\
 		printk(KERN_INFO "QCUSBNet2k::%s " fmt, __func__, ##arg); \
 } while (0)
 
@@ -56,6 +51,7 @@ struct urbreq {
 
 struct worker {
 	struct task_struct *thread;
+	struct completion work;
 	struct list_head urbs;
 	spinlock_t urbs_lock;
 	struct urb *active;
@@ -66,7 +62,7 @@ struct worker {
 struct qmidev {
 	dev_t devnum;
 	struct class *devclass;
-	struct cdev *cdev;
+	struct cdev cdev;
 	struct urb *readurb;
 	struct urbsetup *readsetup;
 	void *readbuf;
@@ -85,24 +81,15 @@ enum {
 };
 
 struct qcusbnet {
-	struct list_head node;
-	struct kref refcount;
 	struct usbnet *usbnet;
 	struct usb_interface *iface;
 	int (*open)(struct net_device *);
 	int (*stop)(struct net_device *);
 	unsigned long down;
-
 	bool valid;
-	bool dying;
-	struct mutex mutex;
-
 	struct qmidev qmi;
 	char meid[14];
 	struct worker worker;
-#ifdef CONFIG_HAS_WAKELOCK
-	struct wake_lock wake_lock;
-#endif /* CONFIG_HAS_WAKELOCK */
 };
 
 #endif /* !QCUSBNET_STRUCTS_H */
