@@ -57,11 +57,11 @@ static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000068,   /* TREFBW */
-			0x00000003,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000003,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa09404ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -108,11 +108,11 @@ static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x000000d0,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa09404ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -159,11 +159,11 @@ static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000138,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa09404ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -210,11 +210,11 @@ static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000270,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000001,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06804ae,   /* CFG_DIG_DLL */
 			0x007e0010,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -315,11 +315,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_50nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000068,   /* TREFBW */
-			0x00000003,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000003,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -366,11 +366,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_50nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x000000d0,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -417,11 +417,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_50nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000138,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -468,11 +468,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_50nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000270,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000001,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa04c04ae,   /* CFG_DIG_DLL */
 			0x007e0010,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -573,11 +573,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_40nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000068,   /* TREFBW */
-			0x00000003,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000003,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa0ae04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -624,11 +624,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_40nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x000000d0,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa0ae04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -675,11 +675,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_40nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000138,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa0ae04ae,   /* CFG_DIG_DLL */
 			0x00070000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -726,11 +726,11 @@ static const struct tegra_emc_table stingray_emc_tables_elpida_40nm[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000270,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000001,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa07c04ae,   /* CFG_DIG_DLL */
 			0x007de010,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */

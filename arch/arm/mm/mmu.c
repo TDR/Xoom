@@ -560,6 +560,7 @@ static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
 				      const struct mem_type *type)
 {
 	pmd_t *pmd = pmd_offset(pgd, addr);
+	unsigned long pages_2m = 0, pages_4k = 0;
 
 	/*
 	 * Try a section mapping - end, addr and phys must all be aligned
@@ -578,6 +579,8 @@ static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
 			phys += SECTION_SIZE;
 		} while (pmd++, addr += SECTION_SIZE, addr != end);
 
+		pages_2m += (end-addr) >> SECTION_SHIFT;
+
 		flush_pmd_entry(p);
 	} else {
 		/*
@@ -585,6 +588,12 @@ static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
 		 * individual L1 entries.
 		 */
 		alloc_init_pte(pmd, addr, end, __phys_to_pfn(phys), type);
+		pages_4k += (end-addr) >> PAGE_SHIFT;
+	}
+
+	if ((addr < lowmem_end_addr) && (end < lowmem_end_addr)) {
+		update_page_count(PG_LEVEL_2M, pages_2m);
+		update_page_count(PG_LEVEL_4K, pages_4k);
 	}
 }
 

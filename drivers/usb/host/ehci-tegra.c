@@ -379,18 +379,13 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 #ifdef CONFIG_PM
 static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
-	u32 port_status;
 	int error_status = 0;
 
 	error_status = ehci_bus_suspend(hcd);
 	if (!error_status && tegra->power_down_on_bus_suspend) {
-		port_status = ehci_readl(ehci, &ehci->regs->port_status[0]);
-		if (!port_status & PORT_CONNECT) {
-			tegra_usb_suspend(hcd);
-			tegra->bus_suspended = 1;
-		}
+		tegra_usb_suspend(hcd);
+		tegra->bus_suspended = 1;
 	}
 
 	return error_status;
@@ -674,14 +669,18 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
+	int status = 0;
 
 	if (tegra->bus_suspended)
-		return 0;
+		goto out;
 
 	if (time_before(jiffies, tegra->ehci->next_statechange))
 		msleep(10);
 
-	return tegra_usb_suspend(hcd);
+	status = tegra_usb_suspend(hcd);
+out:
+	tegra_usb_phy_postsuspend(tegra->phy);
+	return status;
 }
 #endif
 

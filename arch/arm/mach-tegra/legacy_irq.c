@@ -148,7 +148,9 @@ void tegra_legacy_irq_set_lp1_wake_mask(void)
 	for (i = 0; i < NUM_ICTLRS; i++) {
 		base = ictlr_reg_base[i];
 		tegra_legacy_saved_mask[i] = readl(base + ICTLR_CPU_IER);
-		writel(tegra_legacy_wake_mask[i], base + ICTLR_CPU_IER);
+		/* clear all interrupt enabled */
+		writel(tegra_legacy_saved_mask[i], (base + ICTLR_CPU_IER_CLR));
+		writel(tegra_legacy_wake_mask[i], base + ICTLR_CPU_IER_SET);
 	}
 }
 
@@ -159,7 +161,9 @@ void tegra_legacy_irq_restore_mask(void)
 
 	for (i = 0; i < NUM_ICTLRS; i++) {
 		base = ictlr_reg_base[i];
-		writel(tegra_legacy_saved_mask[i], base + ICTLR_CPU_IER);
+		/* clear all wake interrupts enabled */
+		writel(tegra_legacy_wake_mask[i], (base + ICTLR_CPU_IER_CLR));
+		writel(tegra_legacy_saved_mask[i], base + ICTLR_CPU_IER_SET);
 	}
 }
 
@@ -171,6 +175,7 @@ void tegra_init_legacy_irq(void)
 		void __iomem *ictlr = ictlr_reg_base[i];
 		writel(~0, ictlr + ICTLR_CPU_IER_CLR);
 		writel(0, ictlr + ICTLR_CPU_IEP_CLASS);
+		writel(~0, ictlr + ICTLR_CPU_IEP_FIR_CLR);
 	}
 }
 

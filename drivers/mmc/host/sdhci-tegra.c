@@ -30,6 +30,9 @@
 
 #define DRIVER_NAME    "sdhci-tegra"
 
+#define SDHCI_TEGRA_MIN_CONTROLLER_CLOCK	12000000
+#define SDHCI_TEGRA_STANDARD_CONTROLLER_CLOCK	100000000
+#define SDHCI_TEGRA_MAX_CONTROLLER_CLOCK	208000000
 #define SDHCI_VENDOR_CLOCK_CNTRL       0x100
 
 struct tegra_sdhci_host {
@@ -96,6 +99,12 @@ static void tegra_sdhci_enable_clock(struct tegra_sdhci_host *host, int enable)
 static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 {
 	struct tegra_sdhci_host *host = sdhci_priv(sdhci);
+
+	if (clock > SDHCI_TEGRA_MIN_CONTROLLER_CLOCK &&
+			clock <= SDHCI_TEGRA_STANDARD_CONTROLLER_CLOCK)
+		clock = SDHCI_TEGRA_STANDARD_CONTROLLER_CLOCK;
+	else
+		clock = SDHCI_TEGRA_MAX_CONTROLLER_CLOCK;
 	pr_debug("tegra sdhci clock %s %u enabled=%d\n",
 		mmc_hostname(sdhci->mmc), clock, host->clk_enabled);
 
@@ -182,12 +191,12 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 	if (plat->force_hs != 0)
 		sdhci->quirks |= SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE;
 
+	if (plat->rt_disable != 0)
+		sdhci->quirks |= SDHCI_QUIRK_RUNTIME_DISABLE;
+
 	sdhci->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
 	if (plat->mmc_data.built_in)
 		sdhci->mmc->pm_flags = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
-
-	if (plat->rt_disable != 0)
-		sdhci->quirks |= SDHCI_QUIRK_RUNTIME_DISABLE;
 
 	rc = sdhci_add_host(sdhci);
 	if (rc)

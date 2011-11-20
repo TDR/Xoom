@@ -41,6 +41,7 @@
 #define KXTF9_IRQ_GPIO		TEGRA_GPIO_PV3
 #define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
+#define BMP085_RESET_GPIO	TEGRA_GPIO_PI3
 #define L3G4200D_DRDY_GPIO	TEGRA_GPIO_PH3
 #define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
 #define LM3559_RESETN_GPIO	TEGRA_GPIO_PT4
@@ -158,6 +159,10 @@ static int stingray_bmp085_init(void)
 	gpio_request(BMP085_IRQ_GPIO, "bmp085_irq");
 	gpio_direction_input(BMP085_IRQ_GPIO);
 
+	tegra_gpio_enable(BMP085_RESET_GPIO);
+	gpio_request(BMP085_RESET_GPIO, "bmp085_reset");
+	gpio_direction_output(BMP085_RESET_GPIO, 1);
+
 	return 0;
 }
 
@@ -244,11 +249,11 @@ struct cap_prox_platform_data stingray_cap_prox_pdata = {
 		.lp_mode		= 0x00,
 		.address_ptr		= 0x10,
 		.reset			= 0x20,
-		.key_enable_mask 	= 0x3F,
+		.key_enable_mask	= 0x35,
 		.data_integration 	= 0x40,
 		.neg_drift_rate		= 0x50,
 		.pos_drift_rate		= 0x60,
-		.force_detect		= 0x75,
+		.force_detect		= 0x70,
 		.calibrate		= 0x80,
 		.thres_key1		= 0x92,
 		.ref_backup		= 0xaa,

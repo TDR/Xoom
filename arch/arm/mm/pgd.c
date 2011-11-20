@@ -19,6 +19,23 @@
 
 #define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
 
+DEFINE_SPINLOCK(pgd_lock);
+LIST_HEAD(pgd_list);
+
+static inline void pgd_list_add(pgd_t *pgd)
+{
+	struct page *page = virt_to_page(pgd);
+
+	list_add(&page->lru, &pgd_list);
+}
+
+static inline void pgd_list_del(pgd_t *pgd)
+{
+	struct page *page = virt_to_page(pgd);
+
+	list_del(&page->lru);
+}
+
 /*
  * need to get a 16k page for level 1
  */
@@ -27,6 +44,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	pgd_t *new_pgd, *init_pgd;
 	pmd_t *new_pmd, *init_pmd;
 	pte_t *new_pte, *init_pte;
+	unsigned long flags;
 
 	new_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL, 2);
 	if (!new_pgd)
@@ -34,6 +52,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	memset(new_pgd, 0, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
 
+	spin_lock_irqsave(&pgd_lock, flags);
 	/*
 	 * Copy over the kernel and IO PGD entries
 	 */
@@ -41,7 +60,12 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
 		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
 
+#if !defined(CONFIG_CPU_CACHE_V7) || !defined(CONFIG_SMP)
 	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
+#endif
+
+	pgd_list_add(new_pgd);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 
 	if (!vectors_high()) {
 		/*
@@ -68,6 +92,9 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 no_pte:
 	pmd_free(mm, new_pmd);
 no_pmd:
+	spin_lock_irqsave(&pgd_lock, flags);
+	pgd_list_del(new_pgd);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 	free_pages((unsigned long)new_pgd, 2);
 no_pgd:
 	return NULL;
@@ -77,9 +104,14 @@ void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
 {
 	pmd_t *pmd;
 	pgtable_t pte;
+	unsigned long flags;
 
 	if (!pgd)
 		return;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+	pgd_list_del(pgd);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 
 	/* pgd is always present and good */
 	pmd = pmd_off(pgd, 0);
