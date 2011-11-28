@@ -69,7 +69,7 @@ int nvhost_mutex_try_lock(struct nvhost_cpuaccess *ctx, unsigned int idx)
 	reg = readl(sync_regs + (HOST1X_SYNC_MLOCK_0 + idx * 4));
 	if (reg) {
 		nvhost_module_idle(&dev->mod);
-		return -ERESTARTSYS;
+		return -EBUSY;
 	}
 	return 0;
 }
