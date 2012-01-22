@@ -268,6 +268,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 	host->mmc->caps |= MMC_CAP_ERASE;
 	if (plat->is_8bit)
 		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+	host->mmc->caps |= MMC_CAP_BKOPS;
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
 	if (plat->mmc_data.built_in)
