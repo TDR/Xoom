@@ -1068,7 +1068,7 @@ void __init stingray_reserve(void)
 		pr_info("Reserved %08lx@%08lx for ram console\n",
 			ramconsole_start, ramconsole_size);
 
-	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
+	tegra_reserve(SZ_256M, SZ_8M + SZ_1M, SZ_16M);
 
 	if (memblock_reserve(tegra_bootloader_fb_start, tegra_bootloader_fb_size))
 		pr_info("Failed to reserve old framebuffer location\n");
