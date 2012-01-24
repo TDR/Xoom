@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c,v 1.168.2.7 2011-01-27 17:01:13 Exp $
+ * $Id: linux_osl.c,v 1.168.2.7 2011-01-27 17:01:13 $
  */
 
 
