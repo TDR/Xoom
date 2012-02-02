@@ -719,7 +719,7 @@ static void setup_dma_rx_request(struct tegra_dma_req *req,
 static int setup_dma(struct audio_driver_state *ads, int mask)
 {
 	int rc, i;
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (mask & TEGRA_AUDIO_ENABLE_TX) {
 		/* setup audio playback */
@@ -794,7 +794,7 @@ fail_tx:
 static void tear_down_dma(struct audio_driver_state *ads, int mask)
 {
 	int i;
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (mask & TEGRA_AUDIO_ENABLE_TX) {
 		tegra_dma_free_channel(ads->out.dma_chan);
