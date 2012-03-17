@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/arm 2.6.39.4 Kernel Configuration
-# Wed Mar  7 17:15:24 2012
+# Fri Mar 16 19:06:41 2012
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -38,7 +38,7 @@ CONFIG_HAVE_IRQ_WORK=y
 CONFIG_EXPERIMENTAL=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 CONFIG_CROSS_COMPILE=""
-CONFIG_LOCALVERSION="-rogue_XM-2.2.0"
+CONFIG_LOCALVERSION="-rogue_XM-2.2.1"
 # CONFIG_LOCALVERSION_AUTO is not set
 CONFIG_HAVE_KERNEL_GZIP=y
 CONFIG_HAVE_KERNEL_LZMA=y
@@ -1138,6 +1138,7 @@ CONFIG_BCMDHD=y
 CONFIG_BCMDHD_FW_PATH="/system/vendor/firmware/fw_bcmdhd.bin"
 CONFIG_BCMDHD_NVRAM_PATH="/system/etc/wifi/bcm4329.cal"
 # CONFIG_DHD_USE_STATIC_BUF is not set
+# CONFIG_DHD_USE_SCHED_SCAN is not set
 # CONFIG_HOSTAP is not set
 # CONFIG_IWM is not set
 # CONFIG_LIBERTAS is not set
