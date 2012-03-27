@@ -463,7 +463,7 @@ static int cache_maint(struct nvmap_client *client, struct nvmap_handle *h,
 	    start == end)
 		goto out;
 
-	if (WARN_ON_ONCE(op == NVMAP_CACHE_OP_WB_INV))
+	if (op == NVMAP_CACHE_OP_WB_INV)
 		dir = DMA_BIDIRECTIONAL;
 	else if (op == NVMAP_CACHE_OP_WB)
 		dir = DMA_TO_DEVICE;
