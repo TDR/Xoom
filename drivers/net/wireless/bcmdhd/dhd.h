@@ -453,6 +453,7 @@ extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 #define DHD_MULTICAST4_FILTER_NUM	2
 #define DHD_MULTICAST6_FILTER_NUM	3
 #define DHD_MDNS_FILTER_NUM		4
+extern int dhd_os_set_packet_filter(dhd_pub_t *dhdp, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 
